@@ -1,0 +1,1 @@
+bool tsdbPut (String metric, String value);
