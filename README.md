@@ -11,6 +11,7 @@ Platformio project for ESP8266.
 * OpenTSDB for storing metrics
 * Current time obtaining by NTP Client
 * Web-based Wifi and TSDB configuration
+* EEPROM storage for credentials
 
 **Device configuration** 
 WiFi and OpenTSDB credentials can be configured on the web interface:

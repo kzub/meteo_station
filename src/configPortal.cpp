@@ -19,7 +19,7 @@ AutoConnectElement hSplit("element", "<hr>");
 AutoConnectInput host("tsdbHost", "", "hostname", NULL, NULL, AC_Tag_BR, AC_Input_Text);
 AutoConnectInput port("tsdbPort", "", "port", NULL, NULL, AC_Tag_BR, AC_Input_Number);
 AutoConnectInput login("tsdbLogin", "", "user login", NULL, NULL, AC_Tag_BR, AC_Input_Text);
-AutoConnectInput pwd("tsdbPassword", "", "user password", NULL, NULL, AC_Tag_BR, AC_Input_Password);
+AutoConnectInput pwd("tsdbPassword", "", "user password", NULL, "required every save", AC_Tag_BR, AC_Input_Text);
 AutoConnectInput location("tsdbLocation", "", "meteostation location", NULL, NULL, AC_Tag_BR, AC_Input_Text);
 AutoConnectSubmit submit("tsdbSubmit", "save", TSDB_SETTING_URI, AC_Tag_BR);
 
@@ -41,8 +41,89 @@ void handleNotFound() {
 }
 
 //--------------------------------------------------------------------------------
+// CONFIG STORING
+//
+const auto zfs = &AUTOCONNECT_APPLIED_FILESYSTEM;
+
+bool isFsMounted() {
+  bool mounted = AutoConnectFS::_isMounted(zfs);
+  if (!mounted) {
+    Serial.println("FS is not mounted, try to mount...");
+    if (!zfs->begin(AUTOCONECT_FS_INITIALIZATION)) {
+      Serial.println("mount failed");
+      return false;
+    }
+  }
+  return true;
+};
+//---------------------------------------------------------------------------
+bool storeVariableToDisk (String& name) {
+  if (name == "tsdbHost") { return true; }
+  if (name == "tsdbPort") { return true; }
+  if (name == "tsdbLogin") { return true; }
+  if (name == "tsdbPassword") { return true; }
+  if (name == "tsdbLocation") { return true; }
+  return false;
+}
+//---------------------------------------------------------------------------
+void readTSDBcfg (AutoConnectAux& aux) {
+  if (!isFsMounted()) {
+    return;
+  }
+
+  for (AutoConnectElement& element : aux.getElements()) {
+    if (!storeVariableToDisk(element.name)) {
+      continue;
+    }
+    auto file = zfs->open(element.name, "r");
+    if (file == -1) {
+      Serial.print("[fs-read] error opening file: "); Serial.println(element.name);
+    } else {
+      String data = "";
+      Serial.print("read["); Serial.print(element.name); Serial.print("] (");
+      char c[] = "x";
+      while (file.available()) {
+        c[0] = file.read();
+        data += String(c);
+        Serial.print(c);
+      }
+      file.close();
+      Serial.println(")");
+      element.value = data;
+    }
+  }
+}
+//---------------------------------------------------------------------------
+void writeTSDBcfg (AutoConnectAux& aux) {
+  if (!isFsMounted()) {
+    return;
+  }
+
+  for (AutoConnectElement& element : aux.getElements()) {
+    if (!storeVariableToDisk(element.name)) {
+      continue;
+    }
+    auto file = zfs->open(element.name, "w");
+    if (file == -1) {
+      Serial.print("[fs-write] error opening file: "); Serial.println(element.name);
+    } else {
+      auto size = file.write(element.value.c_str(), element.value.length());
+      Serial.print("write["); Serial.print(element.name); Serial.print("]"); Serial.println(size);
+      file.close();
+    }
+  }
+}
+//--------------------------------------------------------------------------------
 String savedPassword = "";
+
 tsdbConfig getCurrentTSDBconfig() {
+  if (savedPassword == ""){
+    // read settings on boot
+    readTSDBcfg(auxTSDB);
+    savedPassword = auxTSDB["tsdbPassword"].value;
+    auxTSDB["tsdbPassword"].value = "";
+  }
+
   return {
     auxTSDB["tsdbHost"].value,
     auxTSDB["tsdbPort"].value,
@@ -54,15 +135,13 @@ tsdbConfig getCurrentTSDBconfig() {
 
 //--------------------------------------------------------------------------------
 String onTSDB_PageLoad (AutoConnectAux& aux, PageArgument& args) {
-  if (aux["tsdbPassword"].value != "******") {
-    // do not overwrite real password
-    // we have real pasword saving right now
-    savedPassword = aux["tsdbPassword"].value;
-  }
-  // mask real password on page
+  // save real passowrds on POST, and don't erase in on GET
   if (aux["tsdbPassword"].value != "") {
-    aux["tsdbPassword"].value = "******";
+    savedPassword = aux["tsdbPassword"].value;
+    writeTSDBcfg(aux);
   }
+  // do not send real password to UI
+  aux["tsdbPassword"].value = "";
   return  {};
 }
 
@@ -76,9 +155,8 @@ void configPortalSetup () {
   acConfig.autoReconnect = true;
   acConfig.reconnectInterval = 10;
 
-  configPortal.join(auxTSDB);
   configPortal.config(acConfig);
-
+  configPortal.join(auxTSDB);
   configPortal.on(TSDB_SETTING_URI, onTSDB_PageLoad);
   configPortal.onNotFound(handleNotFound);
 
@@ -88,12 +166,5 @@ void configPortalSetup () {
 //--------------------------------------------------------------------------------
 // for external usage
 void configPortalHandleClient() {
-  if (WiFi.status() == WL_CONNECTED) {
-    // Here to do when WiFi is connected.
-  }
-  else {
-    // Here to do when WiFi is not connected.
-  }
-
   configPortal.handleClient();
 }
