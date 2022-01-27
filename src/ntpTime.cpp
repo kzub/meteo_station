@@ -2,7 +2,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
-#include "msTime.h"
+#include "ntpTime.h"
 
 WiFiUDP ntpUDP;
 
@@ -20,7 +20,7 @@ void ntpSetup(){
 }
 
 //------------------------------------------------------------
-void ntpLoop() {
+void ntpUpdate() {
   timeClient.update();
 }
 

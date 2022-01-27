@@ -1,15 +1,30 @@
+
 # Meteostation
 
-Platformio project for ESP8266 with sensors:
+Platformio project for ESP8266. 
+
+**Used sensors:**
 * MH-Z19 for CO2
 * DHT22 for Tempreture & Humidity
+
+**Features:**
 * OpenTSDB for storing metrics
+* Current time obtaining by NTP Client
+* Web-based Wifi and TSDB configuration
 
-WiFi and OpenTSDB credentials can be configured through web interface.
-(Connect to METEOSTATION-* AP to setup device)
-Tested on Wemos D1.
+**Device configuration** 
+WiFi and OpenTSDB credentials can be configured on the web interface:
+http://device.ip/_ac
 
-# useful commands
-> pio run -t upload
+By default device in a WiFi AP mode.
+Device SSID is "METEOSTATION-some digits"
 
-> pio device monitor -b 115200
+**Device status** 
+Normally device blinks several times per minute, when sending metrics to the database
+
+If something went wrong, the device will blink continuously
+
+**Build and monitor commands**
+
+    pio run -t upload
+    pio device monitor -b 115200

@@ -4,13 +4,15 @@
 #include "mhSensor.h"
 #include "configPortal.h"
 #include "openTSDB.h"
-#include "msTime.h"
+#include "ntpTime.h"
+#include "deviceLED.h"
 
 //------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
   Serial.println("initializing devices...");
 
+  deviceLED_Setup();
   configPortalSetup(); // wifi/tsdb web-config
   dhtSetup(); // dht sensor
   ntpSetup(); // network time protocol
@@ -21,9 +23,15 @@ void setup() {
 #define REPEAT_INTERVAL 60 * 1000 // ms
 static uint32_t lastimage = millis() - REPEAT_INTERVAL;
 
+bool allWentOK = true;
+
 void loop() {
   configPortalHandleClient();
-  ntpLoop(); // update time from ntp servers
+  ntpUpdate(); // update time from ntp servers
+
+  if (!allWentOK) {
+    blinkLED(100, 50);
+  }
 
   // execute code not very often
   uint32_t now = millis();
@@ -38,6 +46,7 @@ void loop() {
 
   Serial.print(getFormatetTime());
   Serial.println(" read sensors...");
+  allWentOK = true;
 
   auto s1 = dhtRead();
   if(s1.ok) {
@@ -49,9 +58,12 @@ void loop() {
     Serial.print(s1.hi);
     Serial.println("°C ");
 
-    tsdbPut("temp", String(s1.t));
-    tsdbPut("humidity", String(s1.h));
-    tsdbPut("heatIndex", String(s1.hi));
+    blinkLED();
+    allWentOK &= tsdbPut("temp", String(s1.t));
+    blinkLED();
+    allWentOK &= tsdbPut("humidity", String(s1.h));
+    blinkLED();
+    allWentOK &= tsdbPut("heatIndex", String(s1.hi));
   }
 
   auto s2 = ppmRead();
@@ -61,7 +73,12 @@ void loop() {
     Serial.print(", temp: ");
     Serial.println(s2.temp);
 
-    tsdbPut("co2", String(s2.co2ppm));
-    tsdbPut("temp2", String(s2.temp));
+    blinkLED();
+    allWentOK &= tsdbPut("co2", String(s2.co2ppm));
+    blinkLED();
+    allWentOK &= tsdbPut("temp2", String(s2.temp));
   }
+
+  allWentOK &= s1.ok;
+  allWentOK &= s2.ok;
 }

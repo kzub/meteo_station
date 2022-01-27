@@ -2,7 +2,7 @@
 #include <AutoConnect.h>   // wifi auto ap/client setup
 
 #include "configPortal.h"
-#include "msTime.h"
+#include "ntpTime.h"
 
 #define DEVICE_NAME "METEOSTATION";
 #define TSDB_SETTING_URI "/tsdb"

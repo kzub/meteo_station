@@ -3,7 +3,7 @@
 #include "base64.h"        // http basic auth
 
 #include "configPortal.h"
-#include "msTime.h"
+#include "ntpTime.h"
 
 //------------------------------------------------------------
 bool tsdbPut (String metric, String value) {
@@ -30,7 +30,7 @@ bool tsdbPut (String metric, String value) {
   String metrics = "{\"metric\":\"meteostation." + metric + "\"," +
   "\"timestamp\":" + timestamp + "," +
   "\"value\":" + String(value) + "," +
-  "\"tags\":{\"location\":\"" + tsdb.location + "\"}}\n";
+  "\"tags\":{\"location\":\"" + tsdb.location + "\"}}";
 
   client.println("POST /api/put HTTP/1.1");
   client.println("Authorization: Basic " + auth);
@@ -43,13 +43,24 @@ bool tsdbPut (String metric, String value) {
   client.println();
   client.println(metrics);
 
-  Serial.println(metrics);
   Serial.println(">>>>>>>>>>>>>>>>");
-  while (client.available()) {
-    char c = client.read();
-    Serial.print(c);
-  }
-  Serial.println("----------------");
+  Serial.println(metrics);
 
-  return true;
+  uint32_t timeout = millis() + 3000;
+  char response[] = "HTTP/1.1 000 NO_RESPONSE";
+
+  while (millis() < timeout) {
+    int rlen = client.read((uint8_t*)response, sizeof(response) - 1 /* strings end with null */);
+    yield(); // not sure if it needed
+    if (rlen > 0) {
+      break;
+    }
+  }
+  client.stop();
+
+  bool ok = strncmp(response, "HTTP/1.1 204", 12) == 0;
+  Serial.println(ok ? "OK" : "FAILED");
+  Serial.println(response);
+
+  return ok;
 }
