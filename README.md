@@ -1,4 +1,5 @@
 
+
 # Meteostation
 
 Platformio project for ESP8266. 
@@ -29,3 +30,7 @@ If something went wrong, the device will blink continuously
 
     pio run -t upload
     pio device monitor -b 115200
+
+**Device case**
+STL files for printing the case could be found in [case folder](case/)
+![enter image description here](case/case.jpg)
