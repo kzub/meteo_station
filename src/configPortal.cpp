@@ -13,7 +13,11 @@ AutoConnectConfig acConfig;
 
 //--------------------------------------------------------------------------------
 // additional menu for TSDB settings
-ACText(header, "Export metrics to OpenTSDB instance:");
+#ifdef USE_INFLUXDB
+  ACText(header, "Export metrics to InfluxDB instance:");
+#else
+  ACText(header, "Export metrics to OpenTSDB instance:");
+#endif
 AutoConnectElement hSplit("element", "<hr>");
 
 AutoConnectInput host("tsdbHost", "", "hostname", NULL, NULL, AC_Tag_BR, AC_Input_Text);
@@ -23,7 +27,13 @@ AutoConnectInput pwd("tsdbPassword", "", "user password", NULL, "required every 
 AutoConnectInput location("tsdbLocation", "", "meteostation location", NULL, NULL, AC_Tag_BR, AC_Input_Text);
 AutoConnectSubmit submit("tsdbSubmit", "save", TSDB_SETTING_URI, AC_Tag_BR);
 
-AutoConnectAux auxTSDB(TSDB_SETTING_URI, "OpenTSDB Settings", true, { header, hSplit, host, port, login, pwd, location, submit });
+AutoConnectAux auxTSDB(TSDB_SETTING_URI,
+  #ifdef USE_INFLUXDB
+  "InfluxDB Settings",
+  #else
+  "OpenTSDB Settings",
+  #endif
+  true, { header, hSplit, host, port, login, pwd, location, submit });
 
 //--------------------------------------------------------------------------------
 void handleNotFound() {
@@ -49,7 +59,7 @@ bool isFsMounted() {
   bool mounted = AutoConnectFS::_isMounted(zfs);
   if (!mounted) {
     Serial.println("FS is not mounted, try to mount...");
-    if (!zfs->begin(AUTOCONECT_FS_INITIALIZATION)) {
+    if (!zfs->begin(AUTOCONNECT_FS_INITIALIZATION)) {
       Serial.println("mount failed");
       return false;
     }

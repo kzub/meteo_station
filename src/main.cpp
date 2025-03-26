@@ -7,7 +7,6 @@
 #include "ntpTime.h"
 #include "deviceLED.h"
 
-
 //------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
@@ -36,7 +35,7 @@ void loop() {
 
   // execute code not very often
   uint32_t now = millis();
-  if (now < lastimage + REPEAT_INTERVAL) {
+  if (now < lastimage + REPEAT_INTERVAL * (allWentOK ? 1 : 2)) {
     return;
   }
   lastimage = now;
@@ -61,10 +60,13 @@ void loop() {
 
     blinkLED();
     allWentOK &= tsdbPut("temp", String(s1.t));
+    if (!allWentOK) { return; }
     blinkLED();
     allWentOK &= tsdbPut("humidity", String(s1.h));
+    if (!allWentOK) { return; }
     blinkLED();
     allWentOK &= tsdbPut("heatIndex", String(s1.hi));
+    if (!allWentOK) { return; }
   }
 
   auto s2 = ppmRead();
@@ -76,8 +78,10 @@ void loop() {
 
     blinkLED();
     allWentOK &= tsdbPut("co2", String(s2.co2ppm));
+    if (!allWentOK) { return; }
     blinkLED();
     allWentOK &= tsdbPut("temp2", String(s2.temp));
+    if (!allWentOK) { return; }
   }
 
   allWentOK &= s1.ok;

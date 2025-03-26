@@ -3,47 +3,55 @@
 #include "base64.h"        // http basic auth
 
 #include "configPortal.h"
-#include "ntpTime.h"
+
+/*
+[2025-03-26 20:06:38] http://127.0.0.1:8086/write?db=climate_dacha {
+[2025-03-26 20:06:38]   timeout: 5000,
+[2025-03-26 20:06:38]   headers: { 'content-type': 'application/x-www-form-urlencoded' },
+[2025-03-26 20:06:38]   body: 'temperature,sensor=t1 value=34.625\n' +
+[2025-03-26 20:06:38]     'temperature,sensor=t2 value=22\n' +
+[2025-03-26 20:06:38]     'temperature,sensor=t3 value=31.625\n'
+[2025-03-26 20:06:38] }
+*/
 
 //------------------------------------------------------------
-bool genuine_tsdbPut (String metric, String value) {
+bool influx_tsdbPut (String metric, String value) {
   auto tsdb = getCurrentTSDBconfig();
 
   if (tsdb.host == "" || tsdb.port == "") {
-    Serial.println("no openTSDB host or port configured");
+    Serial.println("no InfluxDB host or port configured");
     return false;
   }
 
   String auth = base64::encode(tsdb.login + ":" + tsdb.password);
-  BearSSL::WiFiClientSecure client;
-  client.setInsecure();
+  WiFiClient client;
+//   client.setInsecure();
 
+  Serial.println("connecting to " + tsdb.host + ":" + tsdb.port);
   client.connect(tsdb.host, tsdb.port.toInt());
 
   if (!client.connected()) {
-    Serial.println("could not connect to openTSDB Server:");
+    Serial.println("could not connect to InfluxDB Server:");
     Serial.println(tsdb.host + ":" + tsdb.port);
     return false;
   }
 
-  String timestamp = String(getEpochTimeSec()) + String("000");
-  String metrics = "{\"metric\":\"meteostation." + metric + "\"," +
-  "\"timestamp\":" + timestamp + "," +
-  "\"value\":" + String(value) + "," +
-  "\"tags\":{\"location\":\"" + tsdb.location + "\"}}";
+  String metrics = metric + "," +
+    "location=" + tsdb.location + " " +
+    "value=" + String(value) + "\n";
 
-  client.println("POST /api/put HTTP/1.1");
+  client.println("POST /write?db=meteostation HTTP/1.1");
   client.println("Authorization: Basic " + auth);
   client.println("Host: " + tsdb.host);
   client.println("User-Agent: METEOSTATION/1.1");
   client.println("Connection: close");
-  client.println("Content-Type: application/json");
+  client.println("Content-Type: application/x-www-form-urlencoded");
   client.print("Content-Length: ");
   client.println(metrics.length());
   client.println();
   client.println(metrics);
 
-  Serial.println(">>>>>>>>>>>>>>>> OPENTSDB");
+  Serial.println(">>>>>>>>>>>>>>>> INFLUXDB");
   Serial.println(metrics);
 
   uint32_t timeout = millis() + 3000;
@@ -64,3 +72,5 @@ bool genuine_tsdbPut (String metric, String value) {
 
   return ok;
 }
+
+
